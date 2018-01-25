@@ -80,6 +80,11 @@ def reset():
     logger.info('Preparing reset command')
 
 
+@Command(0x15)
+def get_devices_list():
+    logger.info('Getting list of authenticated devices')
+
+
 @Command(0x21, '!I')
 def set_channels(channels=None):
     channels = channels or [11, 14, 15, 19, 20, 24, 25]

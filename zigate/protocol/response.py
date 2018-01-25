@@ -111,6 +111,26 @@ class ListClusters(Response):
                 self.endpoint, ', '.join(clusters), self.profile)
 
 
+@register(0x8015)
+class DevicesList(Response):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        self.devices = []
+
+        self.struct = struct.Struct('!BHQBB')
+
+        for i in range(0, int((self.length - 1) / self.struct.size)):
+            dev_id, nwk_address, ieee_address, power_source, link_quality = \
+                    self.struct.unpack(self.value[i * self.struct.size:(i + 1) * self.struct.size])
+            self.devices.append({'dev_id': dev_id, 'nwk_address': nwk_address, 'ieee_address': ieee_address, 'power_source': power_source, 'link_quality': link_quality})
+
+
+    def __str__(self):
+        return '<DevicesList %s>' % ', '.join('{ id=%d, nwk_address=0x%04x, ieee_address=0x%016x, power_source=%s, link_quality=%d }' % (dev['dev_id'], dev['nwk_address'], dev['ieee_address'], 'AC' if dev['power_source'] else 'battery', dev['link_quality']) for dev in self.devices)
+
+
 @register(0x8024)
 class NetworkStarted(Response):
 
