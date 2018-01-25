@@ -164,6 +164,22 @@ class ActiveEndpointsResponse(Response):
 
 
 
+@register(0x8102)
+class IndividualAttributeReport(Response):
+
+    def __init__(self, *args):
+        super().__init__(*args)
+
+        attr_struct = struct.Struct('!BHBHHBBH')
+        self.seq_nr, self.src_addr, self.endpoint, self.cluster_id, self.attr_enum, self.attr_status, self.atrr_data_type, self.attr_size = \
+                attr_struct.unpack(self.value[:attr_struct.size])
+        logger.debug("%s %s", attr_struct.size, len(self.value[attr_struct.size:]))
+        self.data_byte_list = struct.unpack('!%ds' % self.attr_size, self.value[attr_struct.size:])
+
+    def __str__(self):
+        return '<IndividualAttributeReport attr_enum=%d, cluster_id=%d, src_addr=%x, data_byte_list=%s>' % (self.attr_enum, self.cluster_id, self.src_addr, self.data_byte_list)
+
+
 def receive(data):
     global _receive_buffer
 
