@@ -9,15 +9,15 @@ logger = logging.getLogger(__name__)
 
 class Response:
 
-    def __init__(self, type_, checksum, value, rssi):
+    def __init__(self, type_, checksum, data, rssi):
         self.type = type_
         self.checksum = checksum
-        self.value = value
+        self.data = data
         self.rssi = rssi
 
     def __str__(self):
-        return 'Response(type=0x%04x, checksum=0x%04x, value=0x%s, rssi=%d)' % (
-                self.type, self.checksum, self.value.hex(), self.rssi)
+        return 'Response(type=0x%04x, checksum=0x%04x, data=0x%s, rssi=%d)' % (
+                self.type, self.checksum, self.data.hex(), self.rssi)
 
 
 def register(type_):
@@ -36,11 +36,11 @@ class MatchDescriptorResponse(Response):
     def __init__(self, *args):
         super().__init__(*args)
         self.seq_nr, self.status, self.address, count = \
-                struct.unpack('!BBHB', self.value[:5])
+                struct.unpack('!BBHB', self.data[:5])
 
     def __str__(self):
-        return '<MatchDesriptorResponse from 0x%04x, status=%s, value=0x%s>' % (
-                self.address, self.status, self.value.hex())
+        return '<MatchDesriptorResponse from 0x%04x, status=%s, data=0x%s>' % (
+                self.address, self.status, self.data.hex())
 
 
 @register(0x8000)
@@ -49,8 +49,8 @@ class Status(Response):
     def __init__(self, *args):
         super().__init__(*args)
         self.status, self.seq_nr, self.packet_type = \
-                struct.unpack('!BBH', self.value[:4])
-        self.info = self.value[4:]
+                struct.unpack('!BBH', self.data[:4])
+        self.info = self.data[4:]
 
     @property
     def ok(self):
@@ -67,23 +67,23 @@ class ClusterResponse(Response):
         super().__init__(*args)
 
         self.in_clusters = self.out_clusters = []
-        value = self.value
+        data = self.data
 
         _, _, _, _, _, self.profile, self.device_id, self.bit_fields, in_count = \
-                struct.unpack('!BBHBBHHBB', value[:12])
+                struct.unpack('!BBHBBHHBB', data[:12])
 
-        value = value[12:]
+        data = data[12:]
 
         if in_count:
-            self.in_clusters = struct.unpack('!%dH' % in_count, value[:2 * in_count])
-            value = value[2 * in_count:]
+            self.in_clusters = struct.unpack('!%dH' % in_count, data[:2 * in_count])
+            data = data[2 * in_count:]
 
-        out_count = value[0]
-        value = value[1:]
+        out_count = data[0]
+        data = data[1:]
         print(in_count, out_count)
 
         if out_count:
-            self.out_clusters = struct.unpack('!%dH' % out_count, value[:2 * out_count])
+            self.out_clusters = struct.unpack('!%dH' % out_count, data[:2 * out_count])
 
     def __str__(self):
         in_clusters = ['0x%04x' % c for c in sorted(self.in_clusters)]
@@ -99,9 +99,9 @@ class ListClusters(Response):
     def __init__(self, *args):
         super().__init__(*args)
 
-        self.endpoint, self.profile = struct.unpack('!BH', self.value[:3])
+        self.endpoint, self.profile = struct.unpack('!BH', self.data[:3])
 
-        self.clusters = self.value[3:]
+        self.clusters = self.data[3:]
 
     def __str__(self):
         clusters = ['0x%04x' % c for c in sorted(self.clusters)]
@@ -122,7 +122,7 @@ class DevicesList(Response):
 
         for i in range(0, int((self.length - 1) / self.struct.size)):
             dev_id, nwk_address, ieee_address, power_source, link_quality = \
-                    self.struct.unpack(self.value[i * self.struct.size:(i + 1) * self.struct.size])
+                    self.struct.unpack(self.data[i * self.struct.size:(i + 1) * self.struct.size])
             self.devices.append({'dev_id': dev_id, 'nwk_address': nwk_address, 'ieee_address': ieee_address, 'power_source': power_source, 'link_quality': link_quality})
 
 
@@ -137,7 +137,7 @@ class NetworkStarted(Response):
         super().__init__(*args)
 
         self.status, self.nwk_address, self.ieee_address, self.channel = \
-                struct.unpack('!BHQB', self.value)
+                struct.unpack('!BHQB', self.data)
 
     def __str__(self):
         return '<NetworkStarted status=%d, nwk_address=0x%04x, channel=%d, existing=%s' % (
@@ -151,9 +151,9 @@ class ActiveEndpointsResponse(Response):
         super().__init__(*args)
 
         self.seq_nr, self.status, self.address, count = \
-                struct.unpack('!BBHB', self.value[:5])
+                struct.unpack('!BBHB', self.data[:5])
 
-        self.endpoints = self.value[5:]
+        self.endpoints = self.data[5:]
 
         assert len(self.endpoints) == count
 
@@ -171,9 +171,9 @@ class IndividualAttributeReport(Response):
 
         attr_struct = struct.Struct('!BHBHHBBH')
         self.seq_nr, self.src_addr, self.endpoint, self.cluster_id, self.attr_enum, self.attr_status, self.atrr_data_type, self.attr_size = \
-                attr_struct.unpack(self.value[:attr_struct.size])
-        logger.debug("%s %s", attr_struct.size, len(self.value[attr_struct.size:]))
-        self.data_byte_list = struct.unpack('!%ds' % self.attr_size, self.value[attr_struct.size:])
+                attr_struct.unpack(self.data[:attr_struct.size])
+        logger.debug("%s %s", attr_struct.size, len(self.data[attr_struct.size:]))
+        self.data_byte_list = struct.unpack('!%ds' % self.attr_size, self.data[attr_struct.size:])
 
     def __str__(self):
         return '<IndividualAttributeReport attr_enum=%d, cluster_id=%d, src_addr=%x, data_byte_list=%s>' % (self.attr_enum, self.cluster_id, self.src_addr, self.data_byte_list)
@@ -219,6 +219,6 @@ def _decode(data):
 
 
 def _unpack_raw_message(decoded):
-    type_, length, checksum, value, rssi = \
+    type_, length, checksum, data, rssi = \
             struct.unpack('!HHB%dsB' % (len(decoded) - 6), decoded)
-    return _responses.get(type_, Response)(type_, checksum, value, rssi)
+    return _responses.get(type_, Response)(type_, checksum, data, rssi)
