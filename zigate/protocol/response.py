@@ -9,16 +9,15 @@ logger = logging.getLogger(__name__)
 
 class Response:
 
-    def __init__(self, type_, length, checksum, value, rssi):
+    def __init__(self, type_, checksum, value, rssi):
         self.type = type_
-        self.length = length
         self.checksum = checksum
         self.value = value
         self.rssi = rssi
 
     def __str__(self):
-        return 'Response(tag=0x%04x, length=%d, checksum=0x%04x, value=0x%s, rssi=%d)' % (
-                self.type, self.length, self.checksum, self.value.hex(), self.rssi)
+        return 'Response(type=0x%04x, checksum=0x%04x, value=0x%s, rssi=%d)' % (
+                self.type, self.checksum, self.value.hex(), self.rssi)
 
 
 def register(type_):
@@ -222,4 +221,4 @@ def _decode(data):
 def _unpack_raw_message(decoded):
     type_, length, checksum, value, rssi = \
             struct.unpack('!HHB%dsB' % (len(decoded) - 6), decoded)
-    return _responses.get(type_, Response)(type_, length, checksum, value, rssi)
+    return _responses.get(type_, Response)(type_, checksum, value, rssi)
