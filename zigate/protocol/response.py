@@ -61,7 +61,7 @@ class Status(Response):
 
 
 @register(0x8043)
-class ClusterResponse(Response):
+class SimpleDescriptorResponse(Response):
 
     def __init__(self, *args):
         super().__init__(*args)
@@ -69,8 +69,8 @@ class ClusterResponse(Response):
         self.in_clusters = self.out_clusters = []
         data = self.data
 
-        _, _, _, _, _, self.profile, self.device_id, self.bit_fields, in_count = \
-                struct.unpack('!BBHBBHHBB', data[:12])
+        self.seq_nr, self.status, self.nwk_address, _, self.endpoint, self.profile, \
+                _, _, in_count = struct.unpack('!BBHBBHHBB', data[:12])
 
         data = data[12:]
 
@@ -80,7 +80,6 @@ class ClusterResponse(Response):
 
         out_count = data[0]
         data = data[1:]
-        print(in_count, out_count)
 
         if out_count:
             self.out_clusters = struct.unpack('!%dH' % out_count, data[:2 * out_count])
@@ -88,26 +87,8 @@ class ClusterResponse(Response):
     def __str__(self):
         in_clusters = ['0x%04x' % c for c in sorted(self.in_clusters)]
         out_clusters = ['0x%04x' % c for c in sorted(self.out_clusters)]
-
-        return 'Clusters supported by 0x%0x, in=[%s], out=[%s]. Profile=0x%0x' % (
-                0x00, ', '.join(in_clusters), ', '.join(out_clusters), self.profile)
-
-
-@register(0x8003)
-class ListClusters(Response):
-
-    def __init__(self, *args):
-        super().__init__(*args)
-
-        self.endpoint, self.profile = struct.unpack('!BH', self.data[:3])
-
-        self.clusters = self.data[3:]
-
-    def __str__(self):
-        clusters = ['0x%04x' % c for c in sorted(self.clusters)]
-
-        return '\n\nClusters supported by 0x%0x=[%s], profile=0x%0x\n\n' % (
-                self.endpoint, ', '.join(clusters), self.profile)
+        return '<SimpleDescriptorResponse nwk_address=0x%04x, endpoint=0x%02x, in_clusters=[%s], out_clusters=[%s]>' % (
+                self.nwk_address, self.endpoint, in_clusters, out_clusters)
 
 
 @register(0x8015)

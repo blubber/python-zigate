@@ -22,7 +22,7 @@ class OnOff(Enum):
 
 
 class Profile(Enum):
-    ZHA = 0x10
+    ZHA = 0x104
     Any = 0xffff
 
 
@@ -147,7 +147,7 @@ def request_active_endpoints(address):
 
 
 @Command(0x43, '!HB')
-def list_clusters(address, endpoint):
+def simple_descriptor_request(address, endpoint):
     logger.info('List clusters from 0x%0x:%d', address, endpoint)
     return address, endpoint
 
@@ -155,6 +155,21 @@ def list_clusters(address, endpoint):
 @Command(0x0081, '!BHBBBBB')
 def set_level(address, level):
     return 0x02, address, 0x01, 0x01, 0x01, level, 0x00
+
+
+@Command(0x0100, raw=True)
+def read_attribute(address, endpoint, cluster_id, attributes, address_mode=0x02, source_endpoint=0x01):
+    return struct.pack('!BHBBHBBHB%dH' % len(attributes),
+            address_mode,
+            address,
+            source_endpoint,
+            endpoint,
+            cluster_id,
+            0,  # direction
+            0,  # manufacturer specific
+            0,  # manufacturer id
+            len(attributes),
+            *attributes)
 
 
 def _encode(data):

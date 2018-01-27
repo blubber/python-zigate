@@ -4,7 +4,14 @@ from select import select
 
 from . import protocol as p
 from .device import Device
-from .protocol.response import NetworkStarted, MatchDescriptorResponse, ActiveEndpointsResponse
+from .protocol.response import (
+        NetworkStarted,
+        MatchDescriptorResponse,
+        ActiveEndpointsResponse,
+        SimpleDescriptorResponse,
+        Status,
+        IndividualAttributeReport,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -49,9 +56,14 @@ class Manager:
         logger.info('Initiating device discovery for 0x%04x', nwk_address)
 
         if not self.by_nwk_address(nwk_address):
-            device = Device(nwk_address)
+            device = Device(self, nwk_address)
             self._devices.append(device)
             self.send(p.request_active_endpoints(nwk_address))
+
+    def discover_cluster(self, device, cluster):
+        attrs = list(cluster._attributes.keys())
+        self.send(p.read_attribute(device.nwk_address, cluster.endpoint,
+                cluster.__type__, attrs))
 
     @methdispatch
     def handle_response(self, response):
@@ -85,7 +97,33 @@ class Manager:
             device.endpoints = response.endpoints
 
             for endpoint in device.endpoints:
-                self.send(p.list_clusters(device.nwk_address, endpoint))
+                self.send(p.simple_descriptor_request(device.nwk_address, endpoint))
+
+    @handle_response.register(SimpleDescriptorResponse)
+    def _(self, response):
+        device = self.by_nwk_address(response.nwk_address)
+
+        if not device:
+            logger.warning('SimpleDescriptorResponse from unknown device 0x%0x',
+                    response.nwk_address)
+            device = Device(self, response.nwk_address)
+            self.discover(device)
+        else:
+            for cluster in response.in_clusters:
+                cluster = device.add_cluster(cluster, response.endpoint)
+                if cluster:
+                    self.discover_cluster(device, cluster)
+
+    @handle_response.register(IndividualAttributeReport)
+    def _(self, response):
+        device = self.by_nwk_address(response.src_addr)
+        if device:
+            try:
+                cluster = device.get_cluster(response.cluster_id, response.endpoint)
+            except KeyError:
+                pass
+            else:
+                cluster.set_attribute_value(response.attr_enum, response.data_byte_list[0])
 
 
 class SerialManager(Manager):
