@@ -101,7 +101,7 @@ class DevicesList(Response):
 
         self.struct = struct.Struct('!BHQBB')
 
-        for i in range(0, int((self.length - 1) / self.struct.size)):
+        for i in range(0, int(len(self.data) / self.struct.size)):
             dev_id, nwk_address, ieee_address, power_source, link_quality = \
                     self.struct.unpack(self.data[i * self.struct.size:(i + 1) * self.struct.size])
             self.devices.append({'dev_id': dev_id, 'nwk_address': nwk_address, 'ieee_address': ieee_address, 'power_source': power_source, 'link_quality': link_quality})
