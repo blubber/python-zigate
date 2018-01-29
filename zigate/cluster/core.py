@@ -1,6 +1,7 @@
 import logging
 
 
+from blinker import signal
 from enum import Enum
 
 
@@ -37,6 +38,7 @@ class Cluster(metaclass=ClusterMeta):
         self._attributes = self.__class__._attributes.copy()
         self.device = device
         self.endpoint = endpoint
+        self.attr_notify = signal('zigate_attr_notify')
 
     def set_attribute_value(self, attribute, value):
         try:
@@ -50,6 +52,7 @@ class Cluster(metaclass=ClusterMeta):
                 self.__type__, attribute, unpacked)
 
         self._attributes[attribute] = unpacked
+        self.attr_notify.send(self, attribute=attribute, value=unpacked)
 
 
 class Attribute:

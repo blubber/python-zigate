@@ -11,6 +11,7 @@ from .protocol.response import (
         SimpleDescriptorResponse,
         Status,
         IndividualAttributeReport,
+        DevicesList,
 )
 
 
@@ -72,6 +73,7 @@ class Manager:
     @handle_response.register(NetworkStarted)
     def _(self, response):
         self.send(p.match_descriptor_request(0xfffd, p.request.Profile.Any))
+        self.send(p.get_devices_list())
 
     @handle_response.register(MatchDescriptorResponse)
     def _(self, response):
@@ -107,19 +109,30 @@ class Manager:
             logger.warning('SimpleDescriptorResponse from unknown device 0x%0x',
                     response.nwk_address)
             device = Device(self, response.nwk_address)
-            self.discover(device)
+            self.discover(device.nwk_address)
         else:
             for cluster in response.in_clusters:
                 cluster = device.add_cluster(cluster, response.endpoint)
                 if cluster:
                     self.discover_cluster(device, cluster)
 
+    @handle_response.register(DevicesList)
+    def _(self, response):
+        for dev in response.devices:
+            logger.info("Found paired device %s", dev)
+            device = self.by_ieee_address(dev['ieee_address'])
+            if not device:
+                device = Device(self, dev['nwk_address'], dev['ieee_address'])
+                self.discover(device.nwk_address)
+
     @handle_response.register(IndividualAttributeReport)
     def _(self, response):
         device = self.by_nwk_address(response.src_addr)
+        logger.debug("Found device %s", device)
         if device:
             try:
                 cluster = device.get_cluster(response.cluster_id, response.endpoint)
+                logger.debug("IndividualAttributeReport found cluster %s", cluster)
             except KeyError:
                 pass
             else:

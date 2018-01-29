@@ -14,6 +14,8 @@ class Device:
         self._clusters = {}
 
     def get_cluster(self, cluster_type, endpoint):
+        if not (cluster_type, endpoint) in self._clusters:
+            self.add_cluster(cluster_type, endpoint)
         return self._clusters[(cluster_type, endpoint)]
 
     def add_cluster(self, cluster_type, endpoint):
