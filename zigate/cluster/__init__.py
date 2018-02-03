@@ -1,4 +1,4 @@
-from . import basic
+from . import basic, on_off
 
 
-__all__ = ['basic']
+__all__ = ['basic', 'on_off']
