@@ -7,6 +7,6 @@ setup(name='python-zigate',
       author='Tiemo Kieft',
       author_email='_@isogram.nl',
       url='https://github.com/blubber/python-zigate',
-      packages=['zigate'],
+      packages=['zigate', 'zigate.protocol'],
 )
 
